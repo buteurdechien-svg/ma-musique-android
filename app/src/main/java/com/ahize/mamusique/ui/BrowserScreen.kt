@@ -285,7 +285,7 @@ fun BrowserScreen(onClose: () -> Unit) {
             AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
 
             // Bandeau automatique « Télécharger ? »
-            AnimatedVisibility(
+            androidx.compose.animation.AnimatedVisibility(
                 visible = banner != null,
                 enter = slideInVertically { -it } + fadeIn(),
                 exit = slideOutVertically { -it } + fadeOut(),
