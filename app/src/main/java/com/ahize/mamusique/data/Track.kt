@@ -60,6 +60,48 @@ object MusicRepository {
         } catch (e: SecurityException) {
             return emptyList()
         }
+        result += scanVideos(context)
+        return result
+    }
+
+    /** Vidéos téléchargées dans Music/MaMusique (lues comme des morceaux). Identifiant négatif. */
+    private fun scanVideos(context: Context): List<Track> {
+        val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.TITLE,
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.DATE_ADDED,
+            MediaStore.Video.Media.DISPLAY_NAME,
+        )
+        val result = mutableListOf<Track>()
+        try {
+            context.contentResolver.query(
+                collection, projection,
+                "${MediaStore.Video.Media.RELATIVE_PATH} LIKE ?", arrayOf("%MaMusique%"), null,
+            )?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val titleCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                val durationCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val dateCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+                val nameCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idCol)
+                    val fileName = c.getString(nameCol) ?: "Vidéo"
+                    result += Track(
+                        id = -id,
+                        uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id),
+                        title = c.getString(titleCol).clean() ?: fileName.substringBeforeLast('.'),
+                        artist = "Vidéos",
+                        album = "Vidéos téléchargées",
+                        durationMs = c.getLong(durationCol),
+                        dateAdded = c.getLong(dateCol),
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            return emptyList()
+        }
         return result
     }
 

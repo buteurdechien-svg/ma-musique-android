@@ -11,10 +11,12 @@ import android.os.Looper
 import android.text.Html
 import android.webkit.CookieManager
 import android.webkit.URLUtil
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -202,6 +204,16 @@ object DownloadCenter {
 
     // region Téléchargement
 
+    /** Ce qu'on garde du fichier téléchargé. */
+    enum class Mode {
+        /** Fichier audio tel quel (MP3, M4A…) → bibliothèque */
+        AUDIO,
+        /** Vidéo complète → Films/Volkoff Sound (Galerie) */
+        VIDEO,
+        /** Vidéo téléchargée puis son extrait (M4A) → bibliothèque */
+        EXTRACT_AUDIO,
+    }
+
     /** Lance un téléchargement. Retourne l'identifiant DownloadManager, ou null en cas d'échec. */
     fun download(
         context: Context,
@@ -211,10 +223,12 @@ object DownloadCenter {
         mimeType: String? = null,
         userAgent: String? = null,
         contentDisposition: String? = null,
+        mode: Mode = Mode.AUDIO,
     ): Long? {
         return try {
             val name = (fileName ?: URLUtil.guessFileName(url, contentDisposition, mimeType))
                 .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                .take(120)
             val request = DownloadManager.Request(Uri.parse(url)).apply {
                 mimeType?.let { setMimeType(it) }
                 CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("Cookie", it) }
@@ -222,12 +236,16 @@ object DownloadCenter {
                 setTitle(name)
                 setDescription("Volkoff Sound")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "MaMusique/$name")
+                when (mode) {
+                    Mode.AUDIO -> setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "MaMusique/$name")
+                    Mode.VIDEO -> setDestinationInExternalPublicDir(Environment.DIRECTORY_MOVIES, "Volkoff Sound/$name")
+                    Mode.EXTRACT_AUDIO -> setDestinationInExternalFilesDir(context, Environment.DIRECTORY_MOVIES, name)
+                }
             }
             val id = manager(context).enqueue(request)
             val prefs = prefs(context)
             val pending = JSONObject(prefs.getString("pending", "{}") ?: "{}")
-            pending.put(id.toString(), playlistId ?: "")
+            pending.put(id.toString(), JSONObject().put("p", playlistId ?: "").put("m", mode.name))
             val history = JSONArray(prefs.getString("history", "[]") ?: "[]")
             history.put(id)
             val trimmed = JSONArray()
@@ -244,24 +262,26 @@ object DownloadCenter {
     }
 
     /**
-     * Traite les téléchargements terminés : les fait indexer par Android,
-     * puis les ajoute à leur playlist.
+     * Traite les téléchargements terminés : indexation par Android,
+     * extraction du son des vidéos, ajout à la playlist.
      */
     fun processPending(
         context: Context,
         onTrackReady: (playlistId: String?, trackId: Long) -> Unit,
-        onBatchDone: (added: Int, failed: Int) -> Unit,
+        onBatchDone: (done: Int, failed: Int) -> Unit,
     ) {
         val prefs = prefs(context)
         val pending = JSONObject(prefs.getString("pending", "{}") ?: "{}")
         if (pending.length() == 0) return
         val main = Handler(Looper.getMainLooper())
-        var added = 0
+        var done = 0
         var failed = 0
 
         pending.keys().asSequence().toList().forEach { key ->
             val downloadId = key.toLongOrNull()
-            val playlistId = pending.optString(key).ifBlank { null }
+            val entry = pending.optJSONObject(key)
+            val playlistId = (entry?.optString("p") ?: pending.optString(key)).ifBlank { null }
+            val mode = runCatching { Mode.valueOf(entry?.optString("m") ?: "AUDIO") }.getOrDefault(Mode.AUDIO)
             if (downloadId == null) {
                 pending.remove(key)
                 return@forEach
@@ -276,13 +296,25 @@ object DownloadCenter {
                     DownloadManager.STATUS_SUCCESSFUL -> {
                         pending.remove(key)
                         val localUri = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
-                        val path = localUri?.let { Uri.parse(it).path }
-                        if (path != null) {
-                            added++
-                            MediaScannerConnection.scanFile(context, arrayOf(path), null) { _, uri ->
+                        val path = localUri?.let { Uri.parse(it).path } ?: return@forEach
+                        done++
+                        when (mode) {
+                            Mode.AUDIO -> MediaScannerConnection.scanFile(context, arrayOf(path), null) { _, uri ->
                                 val trackId = uri?.let { runCatching { ContentUris.parseId(it) }.getOrNull() }
                                 if (trackId != null) main.post { onTrackReady(playlistId, trackId) }
                             }
+                            Mode.VIDEO -> MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
+                            Mode.EXTRACT_AUDIO -> Thread {
+                                val uri = runCatching { AudioExtractor.extract(context, File(path)) }.getOrNull()
+                                File(path).delete()
+                                main.post {
+                                    if (uri != null) {
+                                        onTrackReady(playlistId, ContentUris.parseId(uri))
+                                    } else {
+                                        Toast.makeText(context, "Impossible d'extraire le son de cette vidéo", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }.start()
                         }
                     }
                     DownloadManager.STATUS_FAILED -> {
@@ -294,7 +326,7 @@ object DownloadCenter {
             }
         }
         prefs.edit().putString("pending", pending.toString()).apply()
-        if (added > 0 || failed > 0) onBatchDone(added, failed)
+        if (done > 0 || failed > 0) onBatchDone(done, failed)
     }
 
     /** État des téléchargements récents, pour l'écran Télécharger. */

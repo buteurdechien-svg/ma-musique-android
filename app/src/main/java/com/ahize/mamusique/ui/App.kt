@@ -77,7 +77,10 @@ fun MaMusiqueApp(vm: MusicViewModel = viewModel()) {
         processDownloads(context, vm)
         val wanted = buildList {
             add(audioPermission())
-            if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT >= 33) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+                add(Manifest.permission.READ_MEDIA_VIDEO)
+            }
         }
         permissionLauncher.launch(wanted.toTypedArray())
     }
@@ -144,7 +147,7 @@ private fun processDownloads(context: Context, vm: MusicViewModel) {
         },
         onBatchDone = { added, failed ->
             val message = buildString {
-                if (added > 0) append("$added morceau${if (added > 1) "x" else ""} ajouté${if (added > 1) "s" else ""}")
+                if (added > 0) append("$added téléchargement${if (added > 1) "s" else ""} terminé${if (added > 1) "s" else ""}")
                 if (failed > 0) {
                     if (isNotEmpty()) append(" · ")
                     append("$failed échec${if (failed > 1) "s" else ""}")

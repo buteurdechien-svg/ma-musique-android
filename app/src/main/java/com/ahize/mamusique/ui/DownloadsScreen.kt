@@ -81,6 +81,33 @@ fun DownloadsScreen(vm: MusicViewModel, nav: NavHostController) {
         item { LargeTitle("Télécharger") }
 
         item {
+            Surface(
+                onClick = { nav.navigate("browser") },
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Language, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Naviguer et télécharger", color = Color.White,
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Les musiques et vidéos libres sont détectées automatiquement",
+                            color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+
+        item {
+            Text("Ou colle le lien d'une playlist", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp))
+        }
+
+        item {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 OutlinedTextField(
                     value = link,
@@ -223,24 +250,6 @@ fun DownloadsScreen(vm: MusicViewModel, nav: NavHostController) {
                     Checkbox(checked = checked, onCheckedChange = { if (it) selected.add(index) else selected.remove(index) })
                     Text(file.name, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-            }
-        }
-
-        item {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.Language, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "Besoin de te connecter ou de choisir un fichier à la main ?",
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                TextButton(onClick = { nav.navigate("browser") }) { Text("Navigateur") }
             }
         }
 

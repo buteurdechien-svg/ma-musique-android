@@ -52,7 +52,8 @@ class PlaybackService : MediaSessionService() {
                     val resolved = mediaItems.map { item ->
                         val uri = item.requestMetadata.mediaUri
                             ?: item.mediaId.toLongOrNull()?.let {
-                                ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it)
+                                if (it < 0) ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, -it)
+                                else ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it)
                             }
                         if (uri != null) item.buildUpon().setUri(uri).build() else item
                     }.toMutableList()
