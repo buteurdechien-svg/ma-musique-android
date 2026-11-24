@@ -1,4 +1,4 @@
-# Ma Musique — Android
+# Volkoff Sound — Android
 
 Lecteur de musique personnel (Kotlin + Jetpack Compose + Media3), style Apple Music.
 

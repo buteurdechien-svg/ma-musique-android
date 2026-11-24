@@ -245,7 +245,7 @@ fun startDownload(context: Context, url: String, userAgent: String?, contentDisp
             CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("Cookie", it) }
             userAgent?.let { addRequestHeader("User-Agent", it) }
             setTitle(fileName)
-            setDescription("Ma Musique")
+            setDescription("Volkoff Sound")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "MaMusique/$fileName")
         }

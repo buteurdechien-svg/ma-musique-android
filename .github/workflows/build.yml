@@ -23,26 +23,26 @@ jobs:
       - name: Compiler
         run: gradle assembleRelease --no-daemon --stacktrace
       - name: Renommer l'APK
-        run: cp app/build/outputs/apk/release/app-release.apk MaMusique.apk
+        run: cp app/build/outputs/apk/release/app-release.apk VolkoffSound.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: MaMusique-apk
-          path: MaMusique.apk
+          name: VolkoffSound-apk
+          path: VolkoffSound.apk
       - name: Publier la dernière version (onglet Releases)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Ma Musique (dernière version)
+          name: Volkoff Sound (dernière version)
           prerelease: false
           make_latest: true
-          files: MaMusique.apk
+          files: VolkoffSound.apk
       - name: Copier l'APK dans la branche apk
         run: |
-          mkdir /tmp/apk && cp MaMusique.apk /tmp/apk/
+          mkdir /tmp/apk && cp VolkoffSound.apk /tmp/apk/
           cd /tmp/apk
           git init -q -b apk
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add MaMusique.apk
+          git add VolkoffSound.apk
           git commit -qm "APK ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" apk

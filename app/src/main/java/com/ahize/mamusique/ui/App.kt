@@ -167,7 +167,7 @@ private fun PermissionScreen(onRequest: () -> Unit) {
         Text("Accès à ta musique", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Ma Musique a besoin d'accéder aux fichiers audio de ton téléphone pour les lire.",
+            "Volkoff Sound a besoin d'accéder aux fichiers audio de ton téléphone pour les lire.",
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
