@@ -100,8 +100,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun createPlaylist(name: String) = store.update {
-        it.copy(playlists = it.playlists + PlaylistData(name = name))
+    fun createPlaylist(name: String): String {
+        val playlist = PlaylistData(name = name)
+        store.update { it.copy(playlists = it.playlists + playlist) }
+        return playlist.id
     }
 
     fun deletePlaylist(id: String) = store.update {

@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -43,6 +42,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ahize.mamusique.MusicViewModel
+import com.ahize.mamusique.data.DownloadCenter
 import com.ahize.mamusique.data.Track
 
 private data class TabItem(val route: String, val label: String, val icon: ImageVector)
@@ -50,6 +50,7 @@ private data class TabItem(val route: String, val label: String, val icon: Image
 private val tabs = listOf(
     TabItem("home", "Accueil", Icons.Rounded.Home),
     TabItem("library", "Bibliothèque", Icons.Rounded.LibraryMusic),
+    TabItem("downloads", "Télécharger", Icons.Rounded.Download),
     TabItem("search", "Recherche", Icons.Rounded.Search),
 )
 
@@ -73,6 +74,7 @@ fun MaMusiqueApp(vm: MusicViewModel = viewModel()) {
     }
 
     LaunchedEffect(Unit) {
+        processDownloads(context, vm)
         val wanted = buildList {
             add(audioPermission())
             if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
@@ -90,8 +92,7 @@ fun MaMusiqueApp(vm: MusicViewModel = viewModel()) {
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                onDownloadComplete(ctx, id) { vm.refresh() }
+                processDownloads(ctx, vm)
             }
         }
         ContextCompat.registerReceiver(
@@ -133,24 +134,25 @@ fun MaMusiqueApp(vm: MusicViewModel = viewModel()) {
     }
 }
 
-private fun onDownloadComplete(context: Context, downloadId: Long, onScanned: () -> Unit) {
-    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-    manager.query(DownloadManager.Query().setFilterById(downloadId))?.use { c ->
-        if (!c.moveToFirst()) return
-        val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-        val localUri = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI))
-        if (status != DownloadManager.STATUS_SUCCESSFUL || localUri == null) {
-            Toast.makeText(context, "Échec du téléchargement", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val path = Uri.parse(localUri).path ?: return
-        MediaScannerConnection.scanFile(context, arrayOf(path), null) { _, _ ->
-            android.os.Handler(context.mainLooper).post {
-                onScanned()
-                Toast.makeText(context, "Ajouté à ta bibliothèque", Toast.LENGTH_SHORT).show()
+/** Ajoute les fichiers téléchargés à la bibliothèque (et à leur playlist). */
+private fun processDownloads(context: Context, vm: MusicViewModel) {
+    DownloadCenter.processPending(
+        context,
+        onTrackReady = { playlistId, trackId ->
+            if (playlistId != null) vm.addToPlaylist(playlistId, listOf(trackId))
+            vm.refresh()
+        },
+        onBatchDone = { added, failed ->
+            val message = buildString {
+                if (added > 0) append("$added morceau${if (added > 1) "x" else ""} ajouté${if (added > 1) "s" else ""}")
+                if (failed > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append("$failed échec${if (failed > 1) "s" else ""}")
+                }
             }
-        }
-    }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        },
+    )
 }
 
 @Composable
@@ -232,6 +234,7 @@ private fun MainScaffold(vm: MusicViewModel) {
                 composable("home") { HomeScreen(vm, nav) }
                 composable("library") { LibraryScreen(vm, nav) }
                 composable("search") { SearchScreen(vm, nav) }
+                composable("downloads") { DownloadsScreen(vm, nav) }
                 composable("tracks/{key}") { entry ->
                     TracksScreen(vm, nav, Uri.decode(entry.arguments?.getString("key") ?: "all"))
                 }

@@ -54,7 +54,7 @@ fun HomeScreen(vm: MusicViewModel, nav: NavHostController) {
     Column(Modifier.fillMaxSize()) {
         LargeTitle("Accueil")
         if (loaded && tracks.isEmpty()) {
-            EmptyLibrary(onBrowser = { nav.navigate("browser") })
+            EmptyLibrary(onBrowser = { nav.navigate("downloads") })
             return@Column
         }
         val recentlyPlayed = remember(tracks, library) {
@@ -124,9 +124,9 @@ private fun EmptyLibrary(onBrowser: () -> Unit) {
         )
         Spacer(Modifier.height(20.dp))
         Button(onClick = onBrowser) {
-            Icon(Icons.Rounded.Language, null)
+            Icon(Icons.Rounded.Download, null)
             Spacer(Modifier.width(8.dp))
-            Text("Ouvrir le navigateur")
+            Text("Télécharger ma musique")
         }
     }
 }

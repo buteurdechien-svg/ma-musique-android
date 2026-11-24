@@ -3,14 +3,11 @@
 package com.ahize.mamusique.ui
 
 import android.annotation.SuppressLint
-import android.app.DownloadManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Environment
 import android.webkit.CookieManager
 import android.webkit.MimeTypeMap
-import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -36,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ahize.mamusique.data.DownloadCenter
 
 private val downloadableExtensions = setOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus")
 
@@ -237,22 +235,16 @@ fun startDownload(context: Context, url: String, userAgent: String?, contentDisp
         Toast.makeText(context, "Ce lien ne peut pas être téléchargé", Toast.LENGTH_SHORT).show()
         return
     }
-    try {
-        val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
-            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
-        val request = DownloadManager.Request(Uri.parse(url)).apply {
-            mimeType?.let { setMimeType(it) }
-            CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("Cookie", it) }
-            userAgent?.let { addRequestHeader("User-Agent", it) }
-            setTitle(fileName)
-            setDescription("Volkoff Sound")
-            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            setDestinationInExternalPublicDir(Environment.DIRECTORY_MUSIC, "MaMusique/$fileName")
-        }
-        val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        manager.enqueue(request)
-        Toast.makeText(context, "Téléchargement : $fileName", Toast.LENGTH_SHORT).show()
-    } catch (e: Exception) {
-        Toast.makeText(context, "Téléchargement impossible : ${e.message}", Toast.LENGTH_LONG).show()
-    }
+    val id = DownloadCenter.download(
+        context, url,
+        playlistId = null,
+        mimeType = mimeType,
+        userAgent = userAgent,
+        contentDisposition = contentDisposition,
+    )
+    Toast.makeText(
+        context,
+        if (id != null) "Téléchargement lancé" else "Téléchargement impossible",
+        Toast.LENGTH_SHORT,
+    ).show()
 }
